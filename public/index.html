@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TaskMaster — AI Daily Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #e0dbd0;
+    --border2: #c8c2b5;
+    --text: #1a1916;
+    --text2: #6b6660;
+    --text3: #9e9890;
+    --accent: #1a472a;
+    --accent-light: #e8f2ec;
+    --accent2: #c4451a;
+    --amber: #b07d1a;
+    --amber-light: #fef9ec;
+    --blue: #1a3a72;
+    --blue-light: #edf2fc;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 12px; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 16px; font-weight: 600; }
+  .logo span { color: var(--accent); }
+  .header-tabs { display: flex; gap: 2px; margin-left: 12px; }
+  .htab { padding: 6px 14px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: none; background: none; color: var(--text2); transition: all 0.12s; font-family: 'DM Sans', sans-serif; }
+  .htab:hover { background: var(--surface2); color: var(--text); }
+  .htab.active { background: var(--text); color: white; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .header-date { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .key-btn { padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; cursor: pointer; background: var(--surface2); color: var(--text2); font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
+  .key-btn:hover { border-color: var(--border2); color: var(--text); }
+  .key-status { width: 7px; height: 7px; border-radius: 50%; background: #ccc; }
+  .key-status.ok { background: #1D9E75; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; display: flex; align-items: center; justify-content: center; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 420px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.14); }
+  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+  .modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text); background: var(--surface2); outline: none; margin-bottom: 12px; }
+  .modal input:focus { border-color: var(--border2); }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal a { color: var(--accent); font-size: 12px; text-decoration: none; }
+  .modal a:hover { text-decoration: underline; }
+  .modal-note { font-size: 11px; color: var(--text3); margin-bottom: 14px; line-height: 1.5; }
+
+  /* LAYOUT */
+  .container { max-width: 920px; margin: 0 auto; padding: 24px 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .stat-num { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+  .stat-lbl { font-size: 11px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .progress-wrap { height: 3px; background: var(--border); border-radius: 10px; margin-top: 8px; overflow: hidden; }
+  .progress-bar { height: 100%; background: var(--accent); border-radius: 10px; transition: width 0.5s; }
+
+  /* ADD BAR */
+  .add-bar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; gap: 8px; align-items: center; margin-bottom: 18px; box-shadow: var(--shadow); flex-wrap: wrap; }
+  .add-bar input[type=text] { flex: 1; min-width: 160px; border: none; outline: none; font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text); background: transparent; }
+  .add-bar input::placeholder { color: var(--text3); }
+  .add-bar select { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--text2); background: var(--surface2); cursor: pointer; outline: none; }
+  .divider-v { width: 1px; height: 20px; background: var(--border); }
+  .btn-add { padding: 7px 16px; background: var(--text); color: white; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity 0.12s; white-space: nowrap; }
+  .btn-add:hover { opacity: 0.82; }
+  .btn-add:active { transform: scale(0.97); }
+  .btn-sec { padding: 7px 14px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+  .btn-sec:hover { background: var(--surface); color: var(--text); }
+
+  /* SPLIT */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .col-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .col-head { padding: 11px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+  .col-head-work { background: var(--blue-light); }
+  .col-head-personal { background: var(--accent-light); }
+  .col-title { font-size: 13px; font-weight: 600; }
+  .col-title-work { color: var(--blue); }
+  .col-title-personal { color: var(--accent); }
+  .col-badge { margin-left: auto; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; }
+  .col-badge-work { background: #dbe8fa; color: var(--blue); }
+  .col-badge-personal { background: #d0e8d8; color: var(--accent); }
+  .col-body { padding: 10px; display: flex; flex-direction: column; gap: 6px; min-height: 60px; }
+
+  /* TASK CARD */
+  .task-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; align-items: flex-start; gap: 8px; background: var(--surface); transition: opacity 0.2s; }
+  .task-card:hover { border-color: var(--border2); }
+  .task-card.done { opacity: 0.4; }
+  .task-card.done .task-name { text-decoration: line-through; }
+  .check { width: 18px; height: 18px; min-width: 18px; border-radius: 50%; border: 1.5px solid var(--border2); cursor: pointer; display: flex; align-items: center; justify-content: center; margin-top: 1px; transition: all 0.15s; background: var(--surface); flex-shrink: 0; }
+  .check:hover { border-color: var(--accent); background: var(--accent-light); }
+  .check.checked { background: var(--accent); border-color: var(--accent); }
+  .check.checked::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: white; display: block; }
+  .task-info { flex: 1; min-width: 0; }
+  .task-name { font-size: 13px; color: var(--text); line-height: 1.4; }
+  .task-meta { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+  .badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  .bp1 { background: #fde8e8; color: #9b2626; }
+  .bp2 { background: var(--amber-light); color: var(--amber); }
+  .bp3 { background: var(--blue-light); color: var(--blue); }
+  .bp4 { background: var(--surface2); color: var(--text3); }
+  .bcat { background: var(--surface2); color: var(--text2); }
+  .del-btn { width: 22px; height: 22px; min-width: 22px; border: none; background: none; cursor: pointer; color: var(--text3); font-size: 11px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; flex-shrink: 0; }
+  .del-btn:hover { background: #fde8e8; color: var(--accent2); }
+  .empty-col { font-size: 12px; color: var(--text3); text-align: center; padding: 18px 0; }
+
+  /* AI CARD */
+  .ai-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin-top: 16px; box-shadow: var(--shadow); }
+  .ai-label { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+  .pulse-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .ai-text { font-size: 14px; color: var(--text); line-height: 1.75; }
+  .ai-text.muted { color: var(--text3); }
+  .dots-anim span { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--text3); animation: dotpulse 1.2s infinite; margin: 0 2px; }
+  .dots-anim span:nth-child(2) { animation-delay: 0.2s; }
+  .dots-anim span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotpulse { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  /* MONTH */
+  .month-header { display: flex; align-items: center; margin-bottom: 14px; }
+  .month-title { font-size: 16px; font-weight: 600; }
+  .month-legend { display: flex; gap: 12px; margin-left: auto; font-size: 11px; color: var(--text3); align-items: center; }
+  .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
+  .month-grid-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 18px; box-shadow: var(--shadow); }
+  .day-hdrs { display: grid; grid-template-columns: repeat(7,1fr); background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .day-hdr { font-size: 11px; font-weight: 500; color: var(--text3); text-align: center; padding: 8px 0; }
+  .days-grid { display: grid; grid-template-columns: repeat(7,1fr); }
+  .mday { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 60px; padding: 6px; cursor: pointer; transition: background 0.1s; position: relative; }
+  .mday:nth-child(7n) { border-right: none; }
+  .mday:hover { background: var(--surface2); }
+  .mday.today { background: var(--accent-light); }
+  .mday.selected { outline: 2px solid var(--text) inset; }
+  .mday.today.selected { outline: 2px solid var(--accent) inset; }
+  .mday-num { font-size: 12px; font-weight: 500; color: var(--text2); }
+  .mday.today .mday-num { color: var(--accent); font-weight: 700; }
+  .mday-dots { display: flex; gap: 2px; margin-top: 4px; flex-wrap: wrap; }
+  .mday-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dot-work { background: var(--blue); }
+  .dot-personal { background: var(--accent); }
+  .dot-done { background: var(--text3); opacity: 0.5; }
+  .mday-count { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .sel-label { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+
+  /* COACH */
+  .coach-wrap { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  .chat-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .chat-messages { padding: 14px; min-height: 300px; max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .chat-input-row { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); background: var(--surface2); }
+  .chat-input-row input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--text); outline: none; }
+  .chat-input-row input:focus { border-color: var(--border2); }
+  .bubble-user { align-self: flex-end; background: var(--text); color: white; border-radius: 12px 12px 2px 12px; padding: 9px 13px; font-size: 13px; max-width: 80%; line-height: 1.5; }
+  .bubble-ai { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 2px 12px 12px 12px; padding: 10px 13px; font-size: 13px; max-width: 90%; line-height: 1.65; }
+  .bubble-label { font-size: 10px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .motivation-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .motivation-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .quick-asks { margin-top: 12px; }
+  .quick-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+  .quick-btn { display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text2); font-size: 12px; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.12s; }
+  .quick-btn:hover { background: var(--surface); border-color: var(--border2); color: var(--text); }
+
+  @media (max-width: 640px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .split { grid-template-columns: 1fr; }
+    .coach-wrap { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div class="modal-overlay" id="key-modal">
+  <div class="modal">
+    <h2>🔑 Enter your Anthropic API Key</h2>
+    <p>This powers the AI coach and insights. Your key is stored only in your browser — never sent anywhere except directly to Anthropic.</p>
+    <p class="modal-note">Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key</p>
+    <input type="password" id="key-input" placeholder="sk-ant-..." />
+    <div class="modal-btns">
+      <button class="btn-sec" onclick="skipKey()">Skip for now</button>
+      <button class="btn-add" onclick="saveKey()">Save & Continue</button>
+    </div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="logo">Task<span>Master</span></div>
+  <div class="header-tabs">
+    <button class="htab active" id="tab-today" onclick="switchTab('today')">Today</button>
+    <button class="htab" id="tab-month" onclick="switchTab('month')">Month</button>
+    <button class="htab" id="tab-coach" onclick="switchTab('coach')">AI Coach</button>
+  </div>
+  <div class="header-right">
+    <div class="key-status" id="key-status"></div>
+    <button class="key-btn" onclick="showKeyModal()">API Key</button>
+    <div class="header-date" id="header-date"></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- TODAY -->
+  <div id="panel-today" class="panel active">
+    <div class="stats-grid" id="stats"></div>
+    <div class="add-bar">
+      <input type="text" id="t-name" placeholder="Add a task for today..." />
+      <div class="divider-v"></div>
+      <select id="t-type">
+        <option value="work">💼 Work</option>
+        <option value="personal">🌿 Personal</option>
+      </select>
+      <select id="t-pri">
+        <option value="1">🔴 P1 — Urgent</option>
+        <option value="2" selected>🟡 P2 — High</option>
+        <option value="3">🔵 P3 — Medium</option>
+        <option value="4">⚪ P4 — Low</option>
+      </select>
+      <select id="t-cat">
+        <option value="Meeting">Meeting</option>
+        <option value="Email">Email</option>
+        <option value="Project">Project</option>
+        <option value="Study">Study</option>
+        <option value="Errand">Errand</option>
+        <option value="Health">Health</option>
+        <option value="Family">Family</option>
+        <option value="Other">Other</option>
+      </select>
+      <button class="btn-add" onclick="addTask()">+ Add Task</button>
+    </div>
+    <div class="split">
+      <div class="col-card">
+        <div class="col-head col-head-work">
+          <span>💼</span>
+          <span class="col-title col-title-work">Work</span>
+          <span class="col-badge col-badge-work" id="work-count">0</span>
+        </div>
+        <div class="col-body" id="list-work"></div>
+      </div>
+      <div class="col-card">
+        <div class="col-head col-head-personal">
+          <span>🌿</span>
+          <span class="col-title col-title-personal">Personal</span>
+          <span class="col-badge col-badge-personal" id="personal-count">0</span>
+        </div>
+        <div class="col-body" id="list-personal"></div>
+      </div>
+    </div>
+    <div class="ai-card">
+      <div class="ai-label"><div class="pulse-dot"></div>AI Insight</div>
+      <div class="ai-text muted" id="ai-insight">Add tasks above and I'll generate your personalised action plan.</div>
+    </div>
+  </div>
+
+  <!-- MONTH -->
+  <div id="panel-month" class="panel">
+    <div class="month-header">
+      <div class="month-title" id="month-title"></div>
+      <div class="month-legend">
+        <span><span class="legend-dot dot-work"></span>Work</span>
+        <span><span class="legend-dot dot-personal"></span>Personal</span>
+        <span><span class="legend-dot" style="background:var(--text3);opacity:0.5"></span>Done</span>
+      </div>
+    </div>
+    <div class="month-grid-wrap">
+      <div class="day-hdrs" id="day-hdrs"></div>
+      <div class="days-grid" id="days-grid"></div>
+    </div>
+    <div class="add-bar">
+      <input type="text" id="m-name" placeholder="Add task to selected day..." />
+      <div class="divider-v"></div>
+      <select id="m-type">
+        <option value="work">💼 Work</option>
+        <option value="personal">🌿 Personal</option>
+      </select>
+      <select id="m-pri">
+        <option value="1">🔴 P1</option>
+        <option value="2" selected>🟡 P2</option>
+        <option value="3">🔵 P3</option>
+        <option value="4">⚪ P4</option>
+      </select>
+      <button class="btn-add" onclick="addMonthTask()">+ Add</button>
+    </div>
+    <div class="sel-label" id="sel-label"></div>
+    <div class="split">
+      <div class="col-card">
+        <div class="col-head col-head-work"><span>💼</span><span class="col-title col-title-work">Work</span><span class="col-badge col-badge-work" id="m-work-count">0</span></div>
+        <div class="col-body" id="m-list-work"></div>
+      </div>
+      <div class="col-card">
+        <div class="col-head col-head-personal"><span>🌿</span><span class="col-title col-title-personal">Personal</span><span class="col-badge col-badge-personal" id="m-personal-count">0</span></div>
+        <div class="col-body" id="m-list-personal"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COACH -->
+  <div id="panel-coach" class="panel">
+    <div class="coach-wrap">
+      <div class="chat-box">
+        <div class="chat-messages" id="chat-messages">
+          <div class="bubble-ai">
+            <div class="bubble-label">TaskMaster AI</div>
+            Hey! I'm your AI productivity coach. I can see all your tasks — work and personal. Ask me anything: how to prioritise, what to tackle when you're stuck, or just for a motivational boost. 💪
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="coach-input" placeholder="Ask your coach anything..." />
+          <button class="btn-add" onclick="askCoach()">Send</button>
+        </div>
+      </div>
+      <div>
+        <div class="motivation-card">
+          <div class="motivation-title">Daily Check-in</div>
+          <div class="ai-text muted" id="motivation">Open this tab to load your check-in.</div>
+        </div>
+        <div class="quick-asks">
+          <div class="quick-label">Quick prompts</div>
+          <button class="quick-btn" onclick="quickAsk('What should I focus on right now?')">🎯 What should I focus on?</button>
+          <button class="quick-btn" onclick="quickAsk('I feel overwhelmed. Help me prioritise.')">😓 I feel overwhelmed</button>
+          <button class="quick-btn" onclick="quickAsk('How am I doing this week overall?')">📊 How am I doing this week?</button>
+          <button class="quick-btn" onclick="quickAsk('Help me balance work and personal tasks.')">⚖️ Balance work & personal</button>
+          <button class="quick-btn" onclick="quickAsk('Give me a motivational boost!')">🚀 Motivational boost!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const todayStr = new Date().toISOString().split('T')[0];
+  let tasks = JSON.parse(localStorage.getItem('tm_tasks_v4') || '[]');
+  let selectedDate = todayStr;
+  let coachHistory = [];
+
+  document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+  // API KEY
+  function getKey() { return localStorage.getItem('tm_api_key') || ''; }
+  function saveKey() {
+    const val = document.getElementById('key-input').value.trim();
+    if (!val.startsWith('sk-')) { alert('Please enter a valid Anthropic API key starting with sk-'); return; }
+    localStorage.setItem('tm_api_key', val);
+    document.getElementById('key-modal').classList.add('hidden');
+    updateKeyStatus();
+  }
+  function skipKey() { document.getElementById('key-modal').classList.add('hidden'); }
+  function showKeyModal() {
+    document.getElementById('key-input').value = getKey();
+    document.getElementById('key-modal').classList.remove('hidden');
+  }
+  function updateKeyStatus() {
+    const dot = document.getElementById('key-status');
+    dot.classList.toggle('ok', !!getKey());
+  }
+
+  // Show modal if no key
+  if (!getKey()) {
+    document.getElementById('key-modal').classList.remove('hidden');
+  } else {
+    document.getElementById('key-modal').classList.add('hidden');
+  }
+  updateKeyStatus();
+
+  function save() { localStorage.setItem('tm_tasks_v4', JSON.stringify(tasks)); }
+  function pl(p) { return ['','P1','P2','P3','P4'][p]; }
+  function pc(p) { return ['','bp1','bp2','bp3','bp4'][p]; }
+
+  function taskHTML(t) {
+    return `<div class="task-card ${t.done?'done':''}" id="tc${t.id}">
+      <div class="check ${t.done?'checked':''}" onclick="toggle(${t.id})"></div>
+      <div class="task-info">
+        <div class="task-name">${t.name}</div>
+        <div class="task-meta">
+          <span class="badge ${pc(t.priority)}">${pl(t.priority)}</span>
+          <span class="badge bcat">${t.category||''}</span>
+        </div>
+      </div>
+      <button class="del-btn" onclick="del(${t.id})">✕</button>
+    </div>`;
+  }
+
+  function renderToday() {
+    const all = tasks.filter(t => t.date === todayStr).sort((a,b) => a.priority - b.priority);
+    const work = all.filter(t => t.type === 'work');
+    const personal = all.filter(t => t.type === 'personal');
+    const done = all.filter(t => t.done).length;
+    const total = all.length;
+    const pct = total ? Math.round(done/total*100) : 0;
+    const p1 = all.filter(t => t.priority===1 && !t.done).length;
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="stat-num">${done}/${total}</div><div class="stat-lbl">Done today</div></div>
+      <div class="stat-card"><div class="stat-num">${pct}%</div><div class="stat-lbl">Complete</div><div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div></div>
+      <div class="stat-card"><div class="stat-num">${work.length}</div><div class="stat-lbl">Work tasks</div></div>
+      <div class="stat-card"><div class="stat-num">${p1}</div><div class="stat-lbl">Urgent left</div></div>`;
+    document.getElementById('work-count').textContent = work.length;
+    document.getElementById('personal-count').textContent = personal.length;
+    document.getElementById('list-work').innerHTML = work.length ? work.map(taskHTML).join('') : '<div class="empty-col">No work tasks yet</div>';
+    document.getElementById('list-personal').innerHTML = personal.length ? personal.map(taskHTML).join('') : '<div class="empty-col">No personal tasks yet</div>';
+  }
+
+  function renderMonth() {
+    const now = new Date();
+    const year = now.getFullYear(), month = now.getMonth();
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('month-title').textContent = `${months[month]} ${year}`;
+    document.getElementById('day-hdrs').innerHTML = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="day-hdr">${d}</div>`).join('');
+    const first = new Date(year,month,1).getDay();
+    const total = new Date(year,month+1,0).getDate();
+    let html = '';
+    for (let i=0;i<first;i++) html += '<div class="mday" style="cursor:default;background:var(--bg);min-height:60px"></div>';
+    for (let d=1;d<=total;d++) {
+      const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const dt = tasks.filter(t=>t.date===ds);
+      const dots = dt.map(t=>`<div class="mday-dot ${t.done?'dot-done':t.type==='work'?'dot-work':'dot-personal'}"></div>`).join('');
+      html += `<div class="mday${ds===todayStr?' today':''}${ds===selectedDate?' selected':''}" onclick="selectDay('${ds}')">
+        <div class="mday-num">${d}</div>
+        <div class="mday-dots">${dots}</div>
+        ${dt.length?`<div class="mday-count">${dt.length} task${dt.length>1?'s':''}</div>`:''}
+      </div>`;
+    }
+    document.getElementById('days-grid').innerHTML = html;
+    renderSelectedDay();
+  }
+
+  function selectDay(ds) { selectedDate = ds; renderMonth(); }
+
+  function renderSelectedDay() {
+    const d = new Date(selectedDate+'T00:00:00');
+    document.getElementById('sel-label').textContent = d.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    const dt = tasks.filter(t=>t.date===selectedDate).sort((a,b)=>a.priority-b.priority);
+    const work = dt.filter(t=>t.type==='work'), personal = dt.filter(t=>t.type==='personal');
+    document.getElementById('m-work-count').textContent = work.length;
+    document.getElementById('m-personal-count').textContent = personal.length;
+    document.getElementById('m-list-work').innerHTML = work.length ? work.map(taskHTML).join('') : '<div class="empty-col">No work tasks</div>';
+    document.getElementById('m-list-personal').innerHTML = personal.length ? personal.map(taskHTML).join('') : '<div class="empty-col">No personal tasks</div>';
+  }
+
+  function addTask() {
+    const name = document.getElementById('t-name').value.trim();
+    if (!name) return;
+    tasks.push({id:Date.now(),name,type:document.getElementById('t-type').value,priority:+document.getElementById('t-pri').value,category:document.getElementById('t-cat').value,date:todayStr,done:false});
+    document.getElementById('t-name').value = '';
+    save(); renderToday(); autoInsight();
+  }
+
+  function addMonthTask() {
+    const name = document.getElementById('m-name').value.trim();
+    if (!name) return;
+    tasks.push({id:Date.now(),name,type:document.getElementById('m-type').value,priority:+document.getElementById('m-pri').value,category:'Other',date:selectedDate,done:false});
+    document.getElementById('m-name').value = '';
+    save(); renderMonth();
+  }
+
+  function toggle(id) {
+    const t = tasks.find(x=>x.id===id);
+    if(t){ t.done=!t.done; save(); renderToday(); renderMonth(); autoInsight(); }
+  }
+
+  function del(id) {
+    tasks = tasks.filter(x=>x.id!==id);
+    save(); renderToday(); renderMonth();
+  }
+
+  function switchTab(tab) {
+    ['today','month','coach'].forEach(t=>{
+      document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+      document.getElementById('panel-'+t).classList.toggle('active',t===tab);
+    });
+    if(tab==='month') renderMonth();
+    if(tab==='coach') loadMotivation();
+  }
+
+  document.getElementById('t-name').addEventListener('keydown', e => { if(e.key==='Enter') addTask(); });
+  document.getElementById('m-name').addEventListener('keydown', e => { if(e.key==='Enter') addMonthTask(); });
+  document.getElementById('coach-input').addEventListener('keydown', e => { if(e.key==='Enter') askCoach(); });
+  document.getElementById('key-input').addEventListener('keydown', e => { if(e.key==='Enter') saveKey(); });
+
+  function taskSummary() {
+    const all = tasks.filter(t=>t.date===todayStr);
+    const work = all.filter(t=>t.type==='work');
+    const personal = all.filter(t=>t.type==='personal');
+    return `Work: ${work.map(t=>`[P${t.priority}${t.done?'✓':''}] ${t.name} (${t.category})`).join(', ')||'none'}. Personal: ${personal.map(t=>`[P${t.priority}${t.done?'✓':''}] ${t.name}`).join(', ')||'none'}.`;
+  }
+
+  function allTasksSummary() {
+    const byDate = {};
+    tasks.forEach(t=>{ (byDate[t.date]=byDate[t.date]||[]).push(t); });
+    return Object.entries(byDate).sort(([a],[b])=>a.localeCompare(b)).map(([d,ts])=>`${d}: ${ts.map(t=>`[${t.type}][P${t.priority}${t.done?'✓':''}] ${t.name}`).join(', ')}`).join('\n') || 'No tasks added yet.';
+  }
+
+  async function callAI(system, messages) {
+    const r = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, messages, max_tokens: 400 })
+    });
+    if (!r.ok) {
+      const e = await r.json();
+      throw new Error(e.error || 'API error');
+    }
+    const d = await r.json();
+    return d.text || '';
+  }
+
+  async function autoInsight() {
+    const all = tasks.filter(t=>t.date===todayStr);
+    if(!all.length) return;
+
+    const el = document.getElementById('ai-insight');
+    el.innerHTML = '<span class="dots-anim"><span></span><span></span><span></span></span>';
+    el.classList.remove('muted');
+    try {
+      const txt = await callAI('You are a concise productivity coach. Given work and personal tasks, write 2-3 sentences: what to focus on first and why. Be direct and warm. No bullets, no preamble.',[{role:'user',content:taskSummary()}]);
+      el.textContent = txt;
+    } catch(e) {
+      el.textContent = 'Could not load insight — check your API key.';
+      el.classList.add('muted');
+    }
+  }
+
+  async function loadMotivation() {
+
+    const el = document.getElementById('motivation');
+    el.innerHTML = '<span class="dots-anim"><span></span><span></span><span></span></span>';
+    try {
+      const txt = await callAI('You are a warm daily coach. Write 2 encouraging sentences based on the user\'s tasks. Be specific and end energetically. Plain prose.',[{role:'user',content:taskSummary()||'No tasks yet.'}]);
+      el.textContent = txt;
+      el.classList.remove('muted');
+    } catch(e) {
+      el.textContent = 'You\'ve got this — tackle one thing at a time. 💪';
+      el.classList.remove('muted');
+    }
+  }
+
+  async function askCoach() {
+    const inp = document.getElementById('coach-input');
+    const msg = inp.value.trim();
+    if(!msg) return;
+
+    inp.value = '';
+    coachHistory.push({role:'user',content:msg});
+    const chat = document.getElementById('chat-messages');
+    chat.innerHTML += `<div class="bubble-user">${msg}</div>`;
+    const thinking = document.createElement('div');
+    thinking.className = 'bubble-ai';
+    thinking.innerHTML = '<div class="bubble-label">TaskMaster AI</div><span class="dots-anim"><span></span><span></span><span></span></span>';
+    chat.appendChild(thinking);
+    chat.scrollTop = chat.scrollHeight;
+    try {
+      const sys = `You are a warm, insightful productivity and life coach. You know the user's full task list across the month. Be encouraging but concrete. Under 120 words. Plain prose, no bullets.\n\nFull tasks:\n${allTasksSummary()}`;
+      const reply = await callAI(sys, coachHistory.map(m=>({role:m.role,content:m.content})));
+      coachHistory.push({role:'assistant',content:reply});
+      thinking.innerHTML = `<div class="bubble-label">TaskMaster AI</div>${reply}`;
+    } catch(e) {
+      thinking.innerHTML = `<div class="bubble-label">TaskMaster AI</div>Error: ${e.message}. Check your API key.`;
+    }
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function quickAsk(msg) { document.getElementById('coach-input').value = msg; askCoach(); }
+
+  renderToday();
+  renderMonth();
+</script>
+</body>
+</html>
