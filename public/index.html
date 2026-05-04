@@ -133,6 +133,8 @@
 
   /* MONTH */
   .month-header { display: flex; align-items: center; margin-bottom: 14px; }
+  .nav-btn { width:30px;height:30px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.12s;font-family:var(--font-sans); }
+  .nav-btn:hover { background:var(--surface2);border-color:var(--border2); }
   .month-title { font-size: 16px; font-weight: 600; }
   .month-legend { display: flex; gap: 12px; margin-left: auto; font-size: 11px; color: var(--text3); align-items: center; }
   .legend-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 3px; }
@@ -238,6 +240,7 @@
         <option value="Family">Family</option>
         <option value="Other">Other</option>
       </select>
+      <input type="time" id="t-time" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text2);background:var(--surface2);cursor:pointer;outline:none;" />
       <button class="btn-add" onclick="addTask()">+ Add Task</button>
     </div>
     <div class="split">
@@ -267,7 +270,13 @@
   <!-- MONTH -->
   <div id="panel-month" class="panel">
     <div class="month-header">
-      <div class="month-title" id="month-title"></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="nav-btn" onclick="changeYear(-1)" title="Previous year">&#171;</button>
+        <button class="nav-btn" onclick="changeMonth(-1)" title="Previous month">&#8592;</button>
+        <div class="month-title" id="month-title"></div>
+        <button class="nav-btn" onclick="changeMonth(1)" title="Next month">&#8594;</button>
+        <button class="nav-btn" onclick="changeYear(1)" title="Next year">&#187;</button>
+      </div>
       <div class="month-legend">
         <span><span class="legend-dot dot-work"></span>Work</span>
         <span><span class="legend-dot dot-personal"></span>Personal</span>
@@ -291,6 +300,7 @@
         <option value="3">🔵 P3</option>
         <option value="4">⚪ P4</option>
       </select>
+      <input type="time" id="m-time" style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 8px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text2);background:var(--surface2);cursor:pointer;outline:none;" />
       <button class="btn-add" onclick="addMonthTask()">+ Add</button>
     </div>
     <div class="sel-label" id="sel-label"></div>
@@ -380,6 +390,7 @@
   function pc(p) { return ['','bp1','bp2','bp3','bp4'][p]; }
 
   function taskHTML(t) {
+    const timeStr = t.time ? `<span class="badge" style="background:#f0f0e8;color:#666;font-family:'DM Mono',monospace;">⏰ ${t.time}</span>` : '';
     return `<div class="task-card ${t.done?'done':''}" id="tc${t.id}">
       <div class="check ${t.done?'checked':''}" onclick="toggle(${t.id})"></div>
       <div class="task-info">
@@ -387,6 +398,7 @@
         <div class="task-meta">
           <span class="badge ${pc(t.priority)}">${pl(t.priority)}</span>
           <span class="badge bcat">${t.category||''}</span>
+          ${timeStr}
         </div>
       </div>
       <button class="del-btn" onclick="del(${t.id})">✕</button>
@@ -412,9 +424,23 @@
     document.getElementById('list-personal').innerHTML = personal.length ? personal.map(taskHTML).join('') : '<div class="empty-col">No personal tasks yet</div>';
   }
 
+  let viewYear = new Date().getFullYear();
+  let viewMonth = new Date().getMonth();
+
+  function changeYear(dir) {
+    viewYear += dir;
+    renderMonth();
+  }
+
+  function changeMonth(dir) {
+    viewMonth += dir;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    renderMonth();
+  }
+
   function renderMonth() {
-    const now = new Date();
-    const year = now.getFullYear(), month = now.getMonth();
+    const year = viewYear, month = viewMonth;
     const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     document.getElementById('month-title').textContent = `${months[month]} ${year}`;
     document.getElementById('day-hdrs').innerHTML = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="day-hdr">${d}</div>`).join('');
@@ -452,16 +478,20 @@
   function addTask() {
     const name = document.getElementById('t-name').value.trim();
     if (!name) return;
-    tasks.push({id:Date.now(),name,type:document.getElementById('t-type').value,priority:+document.getElementById('t-pri').value,category:document.getElementById('t-cat').value,date:todayStr,done:false});
+    const ttime = document.getElementById('t-time').value;
+    tasks.push({id:Date.now(),name,type:document.getElementById('t-type').value,priority:+document.getElementById('t-pri').value,category:document.getElementById('t-cat').value,date:todayStr,time:ttime,done:false,reminded:false});
     document.getElementById('t-name').value = '';
+    document.getElementById('t-time').value = '';
     save(); renderToday(); autoInsight();
   }
 
   function addMonthTask() {
     const name = document.getElementById('m-name').value.trim();
     if (!name) return;
-    tasks.push({id:Date.now(),name,type:document.getElementById('m-type').value,priority:+document.getElementById('m-pri').value,category:'Other',date:selectedDate,done:false});
+    const mtime = document.getElementById('m-time').value;
+    tasks.push({id:Date.now(),name,type:document.getElementById('m-type').value,priority:+document.getElementById('m-pri').value,category:'Other',date:selectedDate,time:mtime,done:false,reminded:false});
     document.getElementById('m-name').value = '';
+    document.getElementById('m-time').value = '';
     save(); renderMonth();
   }
 
@@ -572,6 +602,37 @@
   }
 
   function quickAsk(msg) { document.getElementById('coach-input').value = msg; askCoach(); }
+
+  // Request notification permission
+  if ('Notification' in window) {
+    Notification.requestPermission();
+  }
+
+  // Reminder engine - checks every 30 seconds
+  function checkReminders() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    const nowDate = now.toISOString().split('T')[0];
+    const nowHour = String(now.getHours()).padStart(2,'0');
+    const nowMin = String(now.getMinutes()).padStart(2,'0');
+    const nowTime = nowHour + ':' + nowMin;
+
+    tasks.forEach(t => {
+      if (t.time && t.date === nowDate && t.time === nowTime && !t.done && !t.reminded) {
+        t.reminded = true;
+        save();
+        const n = new Notification('⏰ TaskMaster Reminder', {
+          body: t.name + (t.category ? ' (' + t.category + ')' : ''),
+          icon: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14/assets/72x72/1f4cb.png',
+          tag: 'task-' + t.id
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    });
+  }
+
+  setInterval(checkReminders, 30000);
+  checkReminders();
 
   renderToday();
   renderMonth();
