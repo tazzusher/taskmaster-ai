@@ -40,22 +40,7 @@
   .htab.active { background: var(--text); color: white; }
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .header-date { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
-  .key-btn { padding: 5px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 11px; font-weight: 500; cursor: pointer; background: var(--surface2); color: var(--text2); font-family: 'DM Sans', sans-serif; transition: all 0.12s; }
-  .key-btn:hover { border-color: var(--border2); color: var(--text); }
-  .key-status { width: 7px; height: 7px; border-radius: 50%; background: #ccc; }
-  .key-status.ok { background: #1D9E75; }
 
-  /* MODAL */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 999; display: flex; align-items: center; justify-content: center; }
-  .modal-overlay.hidden { display: none; }
-  .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 420px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.14); }
-  .modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-  .modal p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
-  .modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text); background: var(--surface2); outline: none; margin-bottom: 12px; }
-  .modal input:focus { border-color: var(--border2); }
-  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
-  .modal a { color: var(--accent); font-size: 12px; text-decoration: none; }
-  .modal a:hover { text-decoration: underline; }
   .modal-note { font-size: 11px; color: var(--text3); margin-bottom: 14px; line-height: 1.5; }
 
   /* LAYOUT */
@@ -184,17 +169,6 @@
 </head>
 <body>
 
-<!-- API KEY MODAL -->
-<div class="modal-overlay" id="key-modal">
-  <div class="modal">
-    <h2>🔑 Enter your Anthropic API Key</h2>
-    <p>This powers the AI coach and insights. Your key is stored only in your browser — never sent anywhere except directly to Anthropic.</p>
-    <p class="modal-note">Get a free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key</p>
-    <input type="password" id="key-input" placeholder="sk-ant-..." />
-    <div class="modal-btns">
-      <button class="btn-sec" onclick="skipKey()">Skip for now</button>
-      <button class="btn-add" onclick="saveKey()">Save & Continue</button>
-    </div>
   </div>
 </div>
 
@@ -206,8 +180,6 @@
     <button class="htab" id="tab-coach" onclick="switchTab('coach')">AI Coach</button>
   </div>
   <div class="header-right">
-    <div class="key-status" id="key-status"></div>
-    <button class="key-btn" onclick="showKeyModal()">API Key</button>
     <div class="header-date" id="header-date"></div>
   </div>
 </div>
@@ -363,32 +335,9 @@
 
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
 
-  // API KEY
-  function getKey() { return localStorage.getItem('tm_api_key') || ''; }
-  function saveKey() {
-    const val = document.getElementById('key-input').value.trim();
-    if (!val.startsWith('sk-')) { alert('Please enter a valid Anthropic API key starting with sk-'); return; }
-    localStorage.setItem('tm_api_key', val);
-    document.getElementById('key-modal').classList.add('hidden');
-    updateKeyStatus();
-  }
-  function skipKey() { document.getElementById('key-modal').classList.add('hidden'); }
-  function showKeyModal() {
-    document.getElementById('key-input').value = getKey();
-    document.getElementById('key-modal').classList.remove('hidden');
-  }
-  function updateKeyStatus() {
-    const dot = document.getElementById('key-status');
-    dot.classList.toggle('ok', !!getKey());
+
   }
 
-  // Show modal if no key
-  if (!getKey()) {
-    document.getElementById('key-modal').classList.remove('hidden');
-  } else {
-    document.getElementById('key-modal').classList.add('hidden');
-  }
-  updateKeyStatus();
 
   function save() { localStorage.setItem('tm_tasks_v4', JSON.stringify(tasks)); }
   function pl(p) { return ['','P1','P2','P3','P4'][p]; }
@@ -616,7 +565,7 @@
   document.getElementById('t-name').addEventListener('keydown', e => { if(e.key==='Enter') addTask(); });
   document.getElementById('m-name').addEventListener('keydown', e => { if(e.key==='Enter') addMonthTask(); });
   document.getElementById('coach-input').addEventListener('keydown', e => { if(e.key==='Enter') askCoach(); });
-  document.getElementById('key-input').addEventListener('keydown', e => { if(e.key==='Enter') saveKey(); });
+
 
   function taskSummary() {
     const all = tasks.filter(t=>t.date===todayStr);
