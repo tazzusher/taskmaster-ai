@@ -1239,13 +1239,18 @@
     const all = tasks.filter(function(t){return t.date===todayStr;});
     const work = all.filter(function(t){return t.type==='work';});
     const personal = all.filter(function(t){return t.type==='personal';});
-    return 'Work: ' + (work.map(function(t){return '[P' + t.priority + (t.done?'✓':'') + '] ' + t.name + ' (' + t.category + ')';}).join(', ') || 'none') + '. Personal: ' + (personal.map(function(t){return '[P' + t.priority + (t.done?'✓':'') + '] ' + t.name;}).join(', ') || 'none') + '.';
+    return 'Work: ' + (work.map(function(t){return '[P' + t.priority + (t.done?' DONE':' PENDING') + ']' + (t.time?' @'+t.time:'') + ' ' + t.name + ' (' + t.category + ')';}).join(', ') || 'none') + '. Personal: ' + (personal.map(function(t){return '[P' + t.priority + (t.done?' DONE':' PENDING') + ']' + (t.time?' @'+t.time:'') + ' ' + t.name;}).join(', ') || 'none') + '.';
   }
 
   function allTasksSummary() {
     const byDate = {};
     tasks.forEach(function(t){ (byDate[t.date]=byDate[t.date]||[]).push(t); });
-    return Object.entries(byDate).sort(function(a,b){return a[0].localeCompare(b[0]);}).map(function(e){return e[0] + ': ' + e[1].map(function(t){return '[' + t.type + '][P' + t.priority + (t.done?'✓':'') + '] ' + t.name;}).join(', ');}).join('\n') || 'No tasks added yet.';
+    const lines = Object.entries(byDate).sort(function(a,b){return a[0].localeCompare(b[0]);}).map(function(e){
+      const d = e[0];
+      const marker = d < todayStr ? ' [PAST]' : d === todayStr ? ' [TODAY]' : ' [UPCOMING]';
+      return d + marker + ': ' + e[1].map(function(t){return '[' + t.type + '][P' + t.priority + (t.done?' DONE':' PENDING') + ']' + (t.time?' @'+t.time:'') + ' ' + t.name;}).join(', ');
+    });
+    return lines.length ? lines.join('\n') : 'No tasks added yet.';
   }
 
   async function callAI(system, messages) {
@@ -1269,7 +1274,9 @@
     el.innerHTML = '<span class="dots-anim"><span></span><span></span><span></span></span>';
     el.classList.remove('muted');
     try {
-      const txt = await callAI('You are a concise productivity coach. Given work and personal tasks, write 2-3 sentences: what to focus on first and why. Be direct and warm. No bullets, no preamble.',[{role:'user',content:taskSummary()}]);
+      const niceDate = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+      const sysIns = 'You are a concise productivity coach. Today is ' + niceDate + '. Given work and personal tasks for TODAY only, write 2-3 sentences: what to focus on first and why. Be direct and warm. Reference specific tasks. No bullets, no preamble. Do not ask for more information — work with what you see.';
+      const txt = await callAI(sysIns,[{role:'user',content:'Today\'s tasks: ' + taskSummary()}]);
       el.textContent = txt;
     } catch(e) {
       el.textContent = 'Could not load insight right now. Try again in a moment.';
@@ -1281,7 +1288,9 @@
     const el = document.getElementById('motivation');
     el.innerHTML = '<span class="dots-anim"><span></span><span></span><span></span></span>';
     try {
-      const txt = await callAI('You are a warm daily coach. Write 2 encouraging sentences based on the user\'s tasks. Be specific and end energetically. Plain prose.',[{role:'user',content:taskSummary()||'No tasks yet.'}]);
+      const niceDateM = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+      const sysMot = 'You are a warm daily coach. Today is ' + niceDateM + '. Write 2 encouraging sentences based on the user\'s tasks for today. Be specific and end energetically. Plain prose. Do not ask questions.';
+      const txt = await callAI(sysMot,[{role:'user',content:taskSummary()||'No tasks yet.'}]);
       el.textContent = txt;
       el.classList.remove('muted');
     } catch(e) {
@@ -1304,7 +1313,8 @@
     chat.appendChild(thinking);
     chat.scrollTop = chat.scrollHeight;
     try {
-      const sys = 'You are a warm, insightful productivity and life coach. You know the user\'s full task list across the month. Be encouraging but concrete. Under 120 words. Plain prose, no bullets.\n\nFull tasks:\n' + allTasksSummary();
+      const niceDateC = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+      const sys = 'You are a warm, insightful productivity and life coach. Today is ' + niceDateC + ' (' + todayStr + '). You can see the user\'s full task list. Each task is marked [PAST], [TODAY], or [UPCOMING] and as DONE or PENDING. Use this information directly — DO NOT ask the user what date it is, what tasks they have done, or which items are pending. You already have all that data. Be encouraging but concrete. Reference specific tasks by name when giving advice. Under 120 words. Plain prose, no bullets.\n\nUser\'s full task data:\n' + allTasksSummary();
       const reply = await callAI(sys, coachHistory.map(function(m){return {role:m.role,content:m.content};}));
       coachHistory.push({role:'assistant',content:reply});
       thinking.innerHTML = '<div class="bubble-label">TaskMaster AI</div>' + reply;
