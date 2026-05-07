@@ -417,6 +417,39 @@
     return d.toISOString().split('T')[0];
   }
 
+  function getNextDay(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    // If next day is still in the past, jump to today
+    const next = d.toISOString().split('T')[0];
+    return next < todayStr ? todayStr : next;
+  }
+
+  function rolloverFromDate(fromDate, toDate) {
+    const pending = tasks.filter(t => t.date === fromDate && !t.done);
+    if (!pending.length) return;
+    pending.forEach(t => {
+      tasks.push({
+        id: Date.now() + Math.random(),
+        name: t.name,
+        type: t.type,
+        priority: t.priority,
+        category: t.category,
+        date: toDate,
+        time: t.time || '',
+        done: false,
+        reminded: false,
+        rolledOver: true
+      });
+      t.done = true;
+    });
+    save();
+    renderToday();
+    renderMonth();
+    const label = toDate === todayStr ? 'today' : toDate;
+    alert('✅ ' + pending.length + ' task' + (pending.length>1?'s':'') + ' moved to ' + label + '!');
+  }
+
   function rolloverTasks() {
     const tomorrow = getTomorrow();
     const pending = tasks.filter(t => t.date === todayStr && !t.done);
@@ -521,6 +554,24 @@
     document.getElementById('m-personal-count').textContent = personal.length;
     document.getElementById('m-list-work').innerHTML = work.length ? work.map(taskHTML).join('') : '<div class="empty-col">No work tasks</div>';
     document.getElementById('m-list-personal').innerHTML = personal.length ? personal.map(taskHTML).join('') : '<div class="empty-col">No personal tasks</div>';
+
+    // Show rollover bar for past dates with pending tasks
+    const pending = dt.filter(t => !t.done);
+    const isPast = selectedDate < todayStr;
+    let bar = document.getElementById('month-rollover-bar');
+    if (bar) bar.remove();
+    if (isPast && pending.length > 0) {
+      const nextDay = getNextDay(selectedDate);
+      const nextLabel = nextDay === todayStr ? 'Today' : nextDay;
+      bar = document.createElement('div');
+      bar.id = 'month-rollover-bar';
+      bar.style.cssText = 'background:#fef9ec;border:1px solid #f0d080;border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;';
+      bar.innerHTML = \`<span style="font-size:13px;color:#854f0b;flex:1;">📋 <strong>\${pending.length}</strong> pending task\${pending.length>1?'s':''} from this day. Move to \${nextLabel}?</span>
+        <button onclick="rolloverFromDate('\${selectedDate}','${nextDay}')" style="padding:5px 12px;border:1px solid #f0d080;border-radius:8px;background:#fff;color:#854f0b;font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;">Move to \${nextLabel} ➜</button>
+        <button onclick="this.parentElement.remove()" style="padding:5px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text3);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;">Dismiss</button>\`;
+      const selLabel = document.getElementById('sel-label');
+      selLabel.parentNode.insertBefore(bar, selLabel.nextSibling);
+    }
   }
 
   function addTask() {
